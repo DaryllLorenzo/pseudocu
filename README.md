@@ -13,10 +13,12 @@ The interpreter is being developed in Rust, focusing on simplicity, clarity, and
 The complete language grammar is defined in Backus-Naur Form (BNF) in the file:
 
 ```
-BNF.txt
+BNF.md
 ```
 
 This file contains the formal specification of the pseudocu language syntax and structure.
+
+**Formatting note in BNF.md:** In the BNF specification, the **pseudocu language symbols** (terminals) are shown in **bold**, while the _Backus-Naur metasymbols_ (such as `::=`, `|`, `< >`) and production rule names appear in normal text.
 
 ## Roadmap
 
