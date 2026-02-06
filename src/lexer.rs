@@ -2,7 +2,7 @@
 pub enum TokenType {
     Number(i64),
     Plus,
-    Dash,
+    Minus,
     Star,
     EOF,
 }
@@ -83,7 +83,7 @@ impl Lexer {
             }
             b'-' => {
                 let tok = Token {
-                    token_type: TokenType::Dash,
+                    token_type: TokenType::Minus,
                     literal: "-".to_string(),
                     line: current_line,
                 };
