@@ -35,30 +35,44 @@ impl Parser {
         }
     }
 
-    fn peek(&self) -> Option<&Token> {
-        self.tokens.get(self.position)
-    }
-
-    fn consume(&mut self, expected_type: TokenType) -> Result<(), String> {
-        if std::mem::discriminant(&self.current_token.token_type) 
-           == std::mem::discriminant(&expected_type) {
-            self.advance();
-            Ok(())
-        } else {
-            Err(format!("Expected {:?}, found {:?}", 
-                 expected_type, self.current_token.token_type))
-        }
-    }
-
     // Public API
     pub fn parse_expression(&mut self) -> Result<Expr, String> {
-        self.parse_addition()
+        self.parse_comparison()
+    }
+
+    fn parse_comparison(&mut self) -> Result<Expr, String> {
+        let mut expr = self.parse_addition()?;
+
+        while matches!(
+            self.current_token.token_type,
+            TokenType::Eq | TokenType::NotEq | TokenType::Gt | TokenType::Lt 
+            | TokenType::GtEq | TokenType::LtEq
+        ) {
+            let op = match self.current_token.token_type {
+                TokenType::Eq => Operator::Eq,
+                TokenType::NotEq => Operator::NotEq,
+                TokenType::Gt => Operator::Gt,
+                TokenType::Lt => Operator::Lt,
+                TokenType::GtEq => Operator::GtEq,
+                TokenType::LtEq => Operator::LtEq,
+                _ => unreachable!(),
+            };
+            self.advance();
+            let right = self.parse_addition()?;
+            expr = Expr::BinaryOp {
+                left: Box::new(expr),
+                operator: op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(expr)
     }
 
     // Private parsing methods with operator precedence
     fn parse_addition(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_multiplication()?;
-        
+
         while matches!(
             self.current_token.token_type,
             TokenType::Plus | TokenType::Minus
@@ -69,7 +83,7 @@ impl Parser {
                 _ => unreachable!(),
             };
             self.advance();
-            
+
             let right = self.parse_multiplication()?;
             expr = Expr::BinaryOp {
                 left: Box::new(expr),
@@ -77,24 +91,29 @@ impl Parser {
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
     fn parse_multiplication(&mut self) -> Result<Expr, String> {
         let mut expr = self.parse_primary()?;
-        
-        while matches!(self.current_token.token_type, TokenType::Star) {
-            self.advance(); // Consume '*'
-            
+
+        while matches!(self.current_token.token_type, TokenType::Star | TokenType::Slash) {
+            let op = match self.current_token.token_type {
+                TokenType::Star => Operator::Multiply,
+                TokenType::Slash => Operator::Divide,
+                _ => unreachable!(),
+            };
+            self.advance();
+
             let right = self.parse_primary()?;
             expr = Expr::BinaryOp {
                 left: Box::new(expr),
-                operator: Operator::Multiply,
+                operator: op,
                 right: Box::new(right),
             };
         }
-        
+
         Ok(expr)
     }
 
@@ -105,27 +124,47 @@ impl Parser {
                 self.advance();
                 Ok(Expr::Number(val))
             }
+            TokenType::Ident(name) => {
+                let name = name.clone();
+                self.advance();
+                Ok(Expr::Identifier(name))
+            }
             _ => Err(format!(
-                "Expected number, found: {:?} at line {}", 
-                self.current_token.token_type, 
+                "Expected number or identifier, found: {:?} at line {}",
+                self.current_token.token_type,
                 self.current_token.line
             )),
         }
     }
 
-    pub fn parse(&mut self) -> Result<Program, String> {
-        let mut statements = Vec::new();
-        
-        while !matches!(self.current_token.token_type, TokenType::EOF) {
-            let expr = self.parse_expression()?;
-            statements.push(Statement::Expr(expr));
+    fn parse_statement(&mut self) -> Result<Statement, String> {
+        if let TokenType::Ident(name) = &self.current_token.token_type {
+            let name = name.clone();
+            self.advance();
             
-            // Optional (for later) consume a semicolon if you add them later
-            // if matches!(self.current_token.token_type, TokenType::Semicolon) {
-            //     self.advance();
-            // }
+            if matches!(self.current_token.token_type, TokenType::Assign) {
+                self.advance(); // consume `=`
+                let value = self.parse_expression()?;
+                return Ok(Statement::Assign { name, value });
+            } else {
+
+                let expr = Expr::Identifier(name);
+                return Ok(Statement::Expr(expr));
+            }
         }
         
+        let expr = self.parse_expression()?;
+        Ok(Statement::Expr(expr))
+    }
+
+    pub fn parse(&mut self) -> Result<Program, String> {
+        let mut statements = Vec::new();
+
+        while !matches!(self.current_token.token_type, TokenType::EOF) {
+            let stmt = self.parse_statement()?;
+            statements.push(stmt);
+        }
+
         Ok(Program { statements })
     }
 }
