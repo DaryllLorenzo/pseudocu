@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Number(i64),
+    Identifier(String),
     BinaryOp {
         left: Box<Expr>,
         operator: Operator,
@@ -13,6 +14,13 @@ pub enum Operator {
     Plus,
     Minus,
     Multiply,
+    Divide,
+    Eq,
+    NotEq,
+    Gt,
+    Lt,
+    GtEq,
+    LtEq,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -22,5 +30,9 @@ pub struct Program {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
+    Assign {
+        name: String,
+        value: Expr,
+    },
     Expr(Expr),
 }
